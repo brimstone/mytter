@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use JSON;
+use LWP::Simple;
+
+my $user = "";
+my $pass = "";
+my $id = 0;
+while(1) {
+	my $raw = get("https://$user:$pass\@the.narro.ws/notifications/statuses/home_timeline.json?count=1&since_id=$id&stream=true");
+	my %tweet = %{decode_json($raw)->[0]};
+	print "$raw\n";
+	$id = $tweet{'id'};
+	my $screen_name = $tweet{'user'}{'screen_name'};
+	my $text = $tweet{'text'};
+	$screen_name =~ s/(")/\\$1/g;
+	$text =~ s/(")/\\$1/g;
+	my $icon = $tweet{'user'}{'profile_image_url'};
+	$icon =~ s#^.*/##;
+	getstore($tweet{'user'}{'profile_image_url'}, "/tmp/$icon") unless -e "/tmp/$icon";
+	system('notify-send "' . $screen_name . '" --icon="/tmp/' . $icon . '" "' . $text . '"');
+}

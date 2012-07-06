@@ -1,0 +1,9 @@
+#!/bin/bash
+user=""
+pass=""
+status="$1"
+[ -z "$status" ] && while read -r aline; do
+	status="$status$aline
+"
+done
+wget -O /dev/null -i - -q --post-data "status=$status" <<< "https://${user}:${pass}@the.narro.ws/notifications/statuses/update.xml"
