@@ -37,14 +37,14 @@ function xml_encode($arr, $wrapper = 'data', $cycle=1) {
 	return $output;
 }
 
+ob_start();
 // timezone crap
 $db->query("SET time_zone = '+00:00';");
 
 $matches = array();
 preg_match('/^([^&]*)\.([^.&]*)/', $_SERVER{'REDIRECT_QUERY_STRING'}, $matches);
-$baseurl = substr($_SERVER{'SCRIPT_URI'}, 0, 0 - strlen($_SERVER{'REDIRECT_QUERY_STRING'}));
+$baseurl = "http" . ($_SERVER{'HTTPS'} == "on" ? "s" : "") . "://" . $_SERVER{'HTTP_HOST'} . dirname($_SERVER{'PHP_SELF'});
 
-$ret = array("errors" => array(array("message" => "Sorry, that page does not exist", "code" => 34)));
 // figure out the api call
 switch ($matches[1]) {
 	case "account/verify_credentials";
@@ -70,7 +70,12 @@ switch ($matches[1]) {
 		break;
 }
 
-if (isset($ret) && is_string($ret))
+if (!isset($ret)) {
+	header("HTTP/1.0 404 Not Found");
+	$ret = array("errors" => array(array("message" => "Sorry, that page does not exist", "code" => 34)));
+}
+
+if (is_string($ret))
 	echo "$ret";
 else {
 	header("Content-type: application/json");
