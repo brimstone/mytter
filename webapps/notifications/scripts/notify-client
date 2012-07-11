@@ -6,15 +6,21 @@ use LWP::Simple;
 
 my $user = "";
 my $pass = "";
-my $baseurl = "the.narro.ws/notifications";
+my $baseurl = "";
 my $id = 0;
 # TODO hit the api once to get the top id
 while(1) {
 	sleep 2;
 	my $raw = get("https://$user:$pass\@$baseurl/statuses/home_timeline.json?count=1&since_id=$id&stream=true");
-	next unless $raw;
+	my %tweet;
 	# TODO add error checking here
-	my %tweet = %{decode_json($raw)->[0]};
+	eval {
+		%tweet = %{decode_json($raw)->[0]};
+	};
+	if ($@) {
+		print "Error: $@\n";
+		next;
+	}
 	$id = $tweet{'id'};
 	my $screen_name = $tweet{'user'}{'screen_name'};
 	my $text = $tweet{'text'};
@@ -24,5 +30,8 @@ while(1) {
 	$icon =~ s#^.*/##;
 	getstore($tweet{'user'}{'profile_image_url'}, "/tmp/$icon");
 	# TODO add "minutes ago"
+	$text =~ s/"/\"/g;
+	$text =~ s/`/\\`/g;
+	$text =~ s/\$/\\\$/g;
 	system('notify-send "' . $screen_name . '" --icon="/tmp/' . $icon . '" "' . $text . '"');
 }
