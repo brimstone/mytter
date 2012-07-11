@@ -1,2 +1,3 @@
 <?php
 $db = new mysqli("server", "database", "password", "username");
+$avatardir = "avatars"; # relative directory to the avatars, this probably should be writable by the php user

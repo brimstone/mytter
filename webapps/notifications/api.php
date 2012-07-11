@@ -1,19 +1,9 @@
 <?php
 # load our db stuff
+require "database.php";
 require "config.php";
+require "user.php";
 
-function query($query = null) {
-	global $db;
-	if (!$results = $db->query($query))
-		die("You fucked up.<br/>" . $db->error);
-	if ($results->num_rows == 0)
-		return;
-	$toreturn = array();
-	while($result = $results->fetch_assoc())
-		$toreturn[] = $result;
-	$results->free();
-	return $toreturn;
-}
 
 function format_time($time) {
 	$dtzone = new DateTimeZone("GMT");
@@ -47,13 +37,14 @@ function xml_encode($arr, $wrapper = 'data', $cycle=1) {
 	return $output;
 }
 
-$matches = array();
-preg_match('/^([^&]*)\.([^.&]*)/', $_SERVER{'REDIRECT_QUERY_STRING'}, $matches);
-
 // timezone crap
 $db->query("SET time_zone = '+00:00';");
 
+$matches = array();
+preg_match('/^([^&]*)\.([^.&]*)/', $_SERVER{'REDIRECT_QUERY_STRING'}, $matches);
+$baseurl = substr($_SERVER{'SCRIPT_URI'}, 0, 0 - strlen($_SERVER{'REDIRECT_QUERY_STRING'}));
 
+$ret = array("errors" => array(array("message" => "Sorry, that page does not exist", "code" => 34)));
 // figure out the api call
 switch ($matches[1]) {
 	case "account/verify_credentials";
@@ -74,41 +65,42 @@ switch ($matches[1]) {
 	case "users/lookup";
 		$ret = user_lookup($matches[2]);
 		break;
+	case "help/test";
+		$ret = "ok";
+		break;
 }
 
-if (is_string($ret))
+if (isset($ret) && is_string($ret))
 	echo "$ret";
 else {
 	header("Content-type: application/json");
 	echo json_encode($ret);
 }
 
-// generic function to check user
-function check_user () {
-	global $db;
+function requireUser() {
 	if (!isset($_SERVER{'PHP_AUTH_USER'})) {
 		header("HTTP/1.1 401 Unauthorized");
 		header("WWW-Authenticate: Basic realm=\"Notification daemon\"");
 		exit();
 	}
-	$user = query(sprintf("SELECT id,name,screen_name FROM `users` WHERE screen_name='%s' AND password='%s';", $db->real_escape_string($_SERVER{'PHP_AUTH_USER'}), $db->real_escape_string($_SERVER{'PHP_AUTH_PW'})));
-	if ($user[0]{'screen_name'} !== $_SERVER{'PHP_AUTH_USER'}) {
-		header("HTTP/1.1 401 Unauthorized");
-		header("WWW-Authenticate: Basic realm=\"Notification daemon\"");
-		exit();
-	}
-	return $user[0];
+	$user = new User();
+	$user->lookupByScreenName($_SERVER{'PHP_AUTH_USER'});
+	if ($user->verifyPassword($_SERVER{'PHP_AUTH_PW'}))
+		return $user;
+	header("HTTP/1.1 401 Unauthorized");
+	header("WWW-Authenticate: Basic realm=\"Notification daemon\"");
+	exit();
 }
 
 // actual api call
 function verify_credentials() {
-	$user = check_user();
-	return $user;
+	$user = requireUser();
+	return $user->getUser();
 }
 
 function home_timeline($format = "") {
-	global $db;
-	$user = check_user();
+	global $db, $baseurl, $avatardir;
+	$user = requireUser();
 	$since_id = 0;
 	if (isset($_GET{'since_id'}))
 		$since_id = $_GET{'since_id'};
@@ -119,13 +111,12 @@ function home_timeline($format = "") {
 	if (isset($_POST['count']))
 		$count = $_POST['count'];
 
-	$rawtimeline = query(sprintf("SELECT	DISTINCT
+	$rawtimeline = $db->query(sprintf("SELECT	DISTINCT
 						`updates`.`id` as id,
 						`updates`.`text` as text,
 						UNIX_TIMESTAMP(`updates`.`created`) as created_at,
 						`updates`.`user_id` as user_id,
 						`users`.`screen_name` as screen_name,
-						`users`.`profile_image_url` as profile_image_url,
 						`users`.`name` as name
 						FROM `relationships`, `updates`, `users`
 						WHERE users.id = updates.user_id AND (
@@ -136,18 +127,18 @@ function home_timeline($format = "") {
 						ORDER BY `updates`.`id` DESC
 						LIMIT %d
 						",
-						$db->real_escape_string($user{'id'}),
-						$db->real_escape_string($user{'id'}),
+						$db->real_escape_string($user->getID()),
+						$db->real_escape_string($user->getID()),
 						$since_id,
 						$db->real_escape_string($count)));
 	$timeline = array();
-	if (!empty($rawtimeline))
+	if (is_array($rawtimeline))
 		foreach ($rawtimeline as $x) {
 			$timeline[] = array("id" => $x{'id'},
 				"text" => $x{'text'},
 				"created_at" => format_time($x{'created_at'}),
 				"entities" => array("urls" => array(), "hashtags" => array(), "user_mentions" => array()),
-				"user" => array("id" => $x{'user_id'}, "screen_name" => $x{'screen_name'}, "name" => $x{'name'}, "profile_image_url" => "https://the.narro.ws/notifications/avatars/" . $x{'profile_image_url'}),
+				"user" => array("id" => $x{'user_id'}, "screen_name" => $x{'screen_name'}, "name" => $x{'name'}, "profile_image_url" => $baseurl . "/" . $avatardir . "/" . $x{'screen_name'} . ".png"),
 				"favorited" => false,
 				"source" => "blah"
 			);
@@ -156,13 +147,12 @@ function home_timeline($format = "") {
 	if (empty($timeline) and isset($_GET['stream']) and $_GET['stream'] == "true") {
 		#generate random queue
 		$queueid = mt_rand();
-		while(!$db->query(sprintf("INSERT INTO `queues` (`queue`, `screen_name_id`) VALUES ('%d', '%d');", $db->real_escape_string($queueid), $db->real_escape_string($user{'id'})))) {
+		while(!$db->query(sprintf("INSERT INTO `queues` (`queue`, `screen_name_id`) VALUES ('%d', '%d');", $db->real_escape_string($queueid), $db->real_escape_string($user->getID())))) {
 			$queueid = mt_rand();
 		}
 		# create our queue and listen to it
 		$msgqueue = msg_get_queue($queueid, 0600);
 		msg_receive($msgqueue, 1, $msg_type, 16384, $msg);
-		$db->query("DELETE FROM `queues` WHERE queue=$queueid");
 		return home_timeline($format);
 	}
 	if ($format == "xml") {
@@ -179,7 +169,7 @@ function home_timeline($format = "") {
 
 function update($format = "") {
 	global $db;
-	$user = check_user();
+	$user = requireUser();
 	$status = "";
 	if (isset($_POST{'status'}))
 		$status = $_POST{'status'};
@@ -187,14 +177,20 @@ function update($format = "") {
 		$status = $_GET{'status'};
 
 	if ($status != "") {
-		$db->query(sprintf("INSERT INTO `updates` (`user_id`, `text`, `created`) VALUES ('%d', '%s', NOW());", $db->real_escape_string($user{'id'}), $db->real_escape_string($status)));
+		$db->query(sprintf("INSERT INTO `updates` (`user_id`, `text`, `created`) VALUES ('%d', '%s', NOW());", $db->real_escape_string($user->getID()), $db->real_escape_string($status)));
 		# i know, it's bad to assume it worked FIXME
 		# get list of queues
-		$queues = query(sprintf("SELECT q.queue as queue FROM queues as q, relationships as r WHERE '%d' = r.following_id and r.follower_id = q.screen_name_id;", $db->real_escape_string($user{'id'})));
-		# try to send to each of them
-		foreach ($queues as $queue) {
-			$msgqueue = msg_get_queue($queue{'queue'}, 0600);
-			msg_send($msgqueue, 1, "msg", true, true, $msg_err);
+		$queues = $db->query(sprintf("SELECT q.queue as queue FROM queues as q, relationships as r WHERE '%d' = r.following_id and r.follower_id = q.screen_name_id;", $db->real_escape_string($user->getID())));
+		if ($queues) {
+			# try to send to each of them
+			foreach ($queues as $queue) {
+				$msgqueue = msg_get_queue($queue{'queue'}, 0600);
+				msg_send($msgqueue, 1, "msg", true, true, $msg_err);
+				# remove old queue from db
+				$db->query("DELETE FROM `queues` WHERE queue=" . $queue{'queue'});
+				# destroy queue
+				msg_remove_queue($msgqueue);
+			}
 		}
 	}
 
@@ -210,8 +206,8 @@ function update($format = "") {
 
 function friends_ids($format = "") {
 	global $db;
-	$user = check_user();
-	$friends = query(sprintf("SELECT following_id as id FROM relationships WHERE follower_id='%d'", $db->real_escape_string($user{'id'})));
+	$user = requireUser();
+	$friends = $db->query(sprintf("SELECT following_id as id FROM relationships WHERE follower_id='%d'", $db->real_escape_string($user->getID())));
 	if ($format == "xml") {
 		header("Content-type: application/xml");
 		$output = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?".">\n";
@@ -239,9 +235,6 @@ function mentions($format = "") {
 }
 
 function user_lookup($format = "") {
-#$log=fopen("/tmp/twitter.log", "a");
-#fwrite($log, print_r($_POST, true));
-#fclose($log);
 	global $db;
 	if ($format == "xml") {
 		header("Content-type: application/xml");
@@ -250,7 +243,7 @@ function user_lookup($format = "") {
 	}
 	$users = explode(",", $_POST{'user_id'});
 	foreach($users as $uid) {
-		$user = query(sprintf("SELECT id,name,screen_name FROM `users` WHERE id='%d';", $db->real_escape_string($uid)));
+		$user = $db->query(sprintf("SELECT id,name,screen_name FROM `users` WHERE id='%d';", $db->real_escape_string($uid)));
 		if ($format == "xml") {
 			$output .= xml_encode($user[0], "user");
 		}
