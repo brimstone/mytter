@@ -29,12 +29,14 @@ public function verifyPassword($password) {
 }
 
 public function getUser() {
+	global $baseurl, $avatardir;
 	if ($this->screen_name == "") {
 		return; # TODO Nothing?
 	}
 	return array("id" => $this->id,
 		"screen_name" => $this->screen_name,
-		"name" => $this->name
+		"name" => $this->name,
+		"profile_image_url" => $baseurl . "/" . $avatardir . "/" . $this->screen_name . ".png"
 	);
 }
 public function getID() {
