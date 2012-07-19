@@ -62,6 +62,18 @@ switch ($matches[1]) {
 	case "friends/ids";
 		$ret = friends_ids($matches[2]);
 		break;
+	case "followers/ids";
+		$ret = followers_ids($matches[2]);
+		break;
+	case "friendships/exists";
+		$ret = friendships_exists(	isset($_GET{'screen_name_a'}) ? $_GET{'screen_name_a'} : "",
+						isset($_GET{'screen_name_b'}) ? $_GET{'screen_name_b'} : "",
+						isset($_GET{'user_id_a'}) ? $_GET{'user_id_a'} : "",
+						isset($_GET{'user_id_b'}) ? $_GET{'user_id_b'} : "");
+		break;
+	case "friendships/create";
+		$ret = friendships_create();
+		break;
 	case "users/lookup";
 		$ret = user_lookup($matches[2]);
 		break;
@@ -72,7 +84,7 @@ switch ($matches[1]) {
 
 if (!isset($ret)) {
 	header("HTTP/1.0 404 Not Found");
-	$ret = array("errors" => array(array("message" => "Sorry, that page does not exist", "code" => 34)));
+	$ret = array("errors" => array(array("message" => "Sorry, that page does not exist " . $matches[1], "code" => 34)));
 }
 
 if (is_string($ret))
@@ -186,8 +198,8 @@ function update($format = "") {
 		# i know, it's bad to assume it worked FIXME
 		# get list of queues
 		$queues = $db->query(sprintf("SELECT q.queue as queue FROM queues as q, relationships as r WHERE '%d' = r.following_id and r.follower_id = q.screen_name_id;", $db->real_escape_string($user->getID())));
-		if ($queues) {
-			# try to send to each of them
+		# try to send to each of them
+		if (is_array($queues))
 			foreach ($queues as $queue) {
 				$msgqueue = msg_get_queue($queue{'queue'}, 0600);
 				msg_send($msgqueue, 1, "msg", true, true, $msg_err);
@@ -196,7 +208,6 @@ function update($format = "") {
 				# destroy queue
 				msg_remove_queue($msgqueue);
 			}
-		}
 	}
 
 	$update = array("text" => $status);
@@ -229,6 +240,74 @@ function friends_ids($format = "") {
 	foreach($friends as $x)
 		$toreturn{'ids'}[] = $x{'id'};
 	return $toreturn;
+}
+
+function followers_ids($format = "") {
+	global $db;
+	$user = requireUser();
+	$friends = $db->query(sprintf("SELECT follower_id as id FROM relationships WHERE following_id='%d'", $db->real_escape_string($user->getID())));
+	if ($format == "xml") {
+		header("Content-type: application/xml");
+		$output = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?".">\n";
+		$output .= "<id_list>\n";
+		$output .= "<ids>\n";
+		foreach($friends as $x)
+			$output .= "<id>" . $x{'id'} . "</id>\n";
+		$output .= "</ids>\n";
+		$output .= "<next_cursor>0</next_cursor><previous_cursor>0</previous_cursor>\n";
+		$output .= "</id_list>\n";
+		return $output;
+	}
+	$toreturn = array("previous_cursor" => 0, "ids" => array(), "previous_cursor_str" => "0", "next_cursor" => 0, "next_cursor_str" => "0");
+	foreach($friends as $x)
+		$toreturn{'ids'}[] = $x{'id'};
+	return $toreturn;
+}
+
+function friendships_exists($screen_name_a = "",
+                            $screen_name_b = "",
+                            $user_id_a = "",
+                            $user_id_b = "") {
+	global $db;
+
+	# setup our user variables
+	$user_a = new User();
+	$user_b = new User();
+	# figure out which user is which
+	if ($screen_name_a != "")
+		$user_a->lookupByScreenName($screen_name_a);
+	if ($screen_name_b != "")
+		$user_b->lookupByScreenName($screen_name_b);
+	# TODO something here to not lookup if we don't need to
+	if ($user_id_a != "")
+		$user_a->lookupByID($user_id_a);
+	if ($user_id_b != "")
+		$user_b->lookupByID($user_id_b);
+	# simple array check
+	return in_array($user_b->getID(), $user_a->getFollowing());
+}
+
+# FIXME untested
+function friendships_create($format) {
+	global $db;
+	# require our requester to be a user
+	$user = requireUser();
+	$user_b = new User();
+	# figure out the user we're trying to friend
+	if (isset($_POST{'screen_name'}))
+		$user_b->lookupByScreenName($_POST{'screen_name'});
+	if (isset($_POST{'user_id'}))
+		$user_b->lookupByID($_POST{'user_id'});
+  
+	if(friendships_exists("", "", $user->getID(), $user_b->getID())) {
+		# return 403 as we're already friends
+		header("HTTP/1.0 403 Forbidden");
+		return "already friends";
+	}
+	# TODO check to see if the new friend requires approval
+	$db->query(sprintf("INSERT INTO relationships (follower_id, following_id) VALUES ('%d', '%d')", $db->real_escape_string($user->getID()), $db->real_escape_string($user_b->getID()))); 
+	# return our new friend
+	return $user_b->getUser();
 }
 
 function mentions($format = "") {
