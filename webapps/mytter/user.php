@@ -6,6 +6,15 @@ protected $name;
 protected $id;
 protected $passwordhash;
 protected $passwordsalt;
+protected $following;
+protected $followers;
+
+protected function _initalizeUser($user) {
+	$this->screen_name = $user{'screen_name'};
+	$this->passwordhash = $user{'password'};
+	$this->id = $user{'id'};
+	$this->name = $user{'name'};
+}
 
 public function __construct() {
 	$this->screen_name = "";
@@ -18,10 +27,13 @@ public function __construct() {
 public function lookupByScreenName ($screen_name) {
 	global $db;
 	$user = $db->query(sprintf("SELECT id,name,screen_name,password FROM `users` WHERE screen_name='%s';", $db->real_escape_string($screen_name)));
-	$this->screen_name = $user[0]{'screen_name'};
-	$this->passwordhash = $user[0]{'password'};
-	$this->id = $user[0]{'id'};
-	$this->name = $user[0]{'name'};
+	$this->_initalizeUser($user[0]);
+}
+
+public function lookupByID ($id) {
+	global $db;
+	$user = $db->query(sprintf("SELECT id,name,screen_name,password FROM `users` WHERE id='%d';", $db->real_escape_string($id)));
+	$this->_initalizeUser($user[0]);
 }
 
 public function verifyPassword($password) {
@@ -39,6 +51,27 @@ public function getUser() {
 		"profile_image_url" => $baseurl . "/" . $avatardir . "/" . $this->screen_name . ".png"
 	);
 }
+
+# TODO handle pending friends
+public function getFollowers() {
+	global $db;
+	if (!defined($this->followers))
+	foreach ($db->query(sprintf("SELECT follower_id as id FROM `relationships` WHERE following_id='%d';", $db->real_escape_string($this->id))) as $follower) {
+		$this->followers[] = $follower{'id'};
+	}
+	return $this->followers;
+}
+
+# TODO handle pending friends
+public function getFollowing() {
+	global $db;
+	if (!defined($this->following))
+	foreach ($db->query(sprintf("SELECT following_id as id FROM `relationships` WHERE follower_id='%d';", $db->real_escape_string($this->id))) as $following) {
+		$this->following[] = $following{'id'};
+	}
+	return $this->following;
+}
+
 public function getID() {
 	return $this->id;
 }
