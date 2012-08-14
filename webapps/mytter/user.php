@@ -76,4 +76,12 @@ public function getID() {
 	return $this->id;
 }
 
+public function save() {
+	// set name, location, all that jazz
+	if ($this->id) 
+		$db->query(sprintf("UPDATE `users` WHERE id='%d'...", $this->id, ...)); // TODO
+	else
+		$db->query(sprintf("INSERT INTO `users` ..", $this->name, ...)); // TODO
+}
+
 }

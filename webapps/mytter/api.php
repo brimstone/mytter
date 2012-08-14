@@ -45,25 +45,37 @@ $matches = array();
 preg_match('/^([^&]*)\.([^.&]*)/', $_SERVER{'REDIRECT_QUERY_STRING'}, $matches);
 $baseurl = "http" . ($_SERVER{'HTTPS'} == "on" ? "s" : "") . "://" . $_SERVER{'HTTP_HOST'} . dirname($_SERVER{'PHP_SELF'});
 
+$format = $matches[2];
+
 // figure out the api call
 switch ($matches[1]) {
 	case "account/verify_credentials";
 		$ret = verify_credentials();
 		break;
+	case "account/create";
+		$ret = new_account($format);
+		break;
+	case "account/update_profile";
+		$ret = update_profile(	isset($_POST['name']) ? $_POST['name'] : "",
+					isset($_POST['location']) ? $_POST['location'] : "",
+					isset($_POST['url']) ? $_POST['url'] : "",
+					isset($_POST['description']) ? $_POST['description'] : "",
+					NULL, $format);
+		break;
 	case "statuses/home_timeline";
-		$ret = home_timeline($matches[2]);
+		$ret = home_timeline($format);
 		break;
 	case "statuses/update";
 		$ret = update();
 		break;
 	case "statuses/mentions";
-		$ret = mentions($matches[2]);
+		$ret = mentions($format);
 		break;
 	case "friends/ids";
-		$ret = friends_ids($matches[2]);
+		$ret = friends_ids($format);
 		break;
 	case "followers/ids";
-		$ret = followers_ids($matches[2]);
+		$ret = followers_ids($format);
 		break;
 	case "friendships/exists";
 		$ret = friendships_exists(	isset($_GET{'screen_name_a'}) ? $_GET{'screen_name_a'} : "",
@@ -72,10 +84,13 @@ switch ($matches[1]) {
 						isset($_GET{'user_id_b'}) ? $_GET{'user_id_b'} : "");
 		break;
 	case "friendships/create";
-		$ret = friendships_create();
+		$ret = friendships_create($format);
+		break;
+	case "friendships/destroy";
+		$ret = friendships_destroy($format);
 		break;
 	case "users/lookup";
-		$ret = user_lookup($matches[2]);
+		$ret = user_lookup($format);
 		break;
 	case "help/test";
 		$ret = "ok";
@@ -309,6 +324,28 @@ function friendships_create($format) {
 	# return our new friend
 	return $user_b->getUser();
 }
+function friendships_destroy($format) {
+	global $db;
+	# require our requester to be a user
+	$user = requireUser();
+	$user_b = new User();
+	# figure out the user we're trying to friend
+	if (isset($_POST{'screen_name'}))
+		$user_b->lookupByScreenName($_POST{'screen_name'});
+	if (isset($_POST{'user_id'}))
+		$user_b->lookupByID($_POST{'user_id'});
+  
+	if(! friendships_exists("", "", $user->getID(), $user_b->getID())) {
+		# return 403 as we're already friends
+		header("HTTP/1.0 403 Forbidden");
+		return "not friends";
+	}
+	# TODO check to see if the new friend requires approval
+	$db->query(sprintf("DELETE FROM relationships WHERE follower_id = '%d' AND following_id = '%d'", $db->real_escape_string($user->getID()), $db->real_escape_string($user_b->getID()))); 
+	# return our new friend
+	return $user_b->getUser();
+
+}
 
 function mentions($format = "") {
 	if ($format == "xml") {
@@ -322,7 +359,7 @@ function user_lookup($format = "") {
 	global $db;
 	if ($format == "xml") {
 		header("Content-type: application/xml");
-		$output = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
+		$output = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?".">\n";
 		$output .= "<users>\n";
 	}
 	$users = explode(",", $_POST{'user_id'});
@@ -336,4 +373,27 @@ function user_lookup($format = "") {
 		$output .= "</users>\n";
 		return $output;
 	}
+}
+
+function new_account($format = "") {
+	// verify user
+	$user = requireUser();
+	// make sure user is admin if we require it
+	// see if our requested username is available
+	if ($newuser->lookupByScreenName($_POST['screen_name']);
+		return "fail";
+	// create new user object
+	$newuser = new User();
+	// pass off our new user and stuff to update_profile
+	$newuser = update_profile($name, $location, $url, $description, $newuser, $format);
+}
+
+function update_profile($name = "", $location = "", $url = "", $description = "", $user, $format = "") {
+	// validate account if $user is unset
+	if (!$user);
+		$user = requireUser();
+	// run query to update thing
+	if (!$name);
+		$user->name = $name;
+	$user->save;
 }
