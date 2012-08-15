@@ -9,7 +9,7 @@ public function __construct($host, $user, $pass, $database) {
 public function query($query = null) {
 	$results = mysqli_query($this->conn, $query);
 	if (!$results)
-		die("You fucked up.<br/>" . mysqli_error($this->conn));
+		die("You fucked up.<br/>\n" . mysqli_error($this->conn));
 	if ($results === true || mysqli_num_rows($results) == 0)
 		return true;
 	$toreturn = array();

@@ -53,14 +53,22 @@ switch ($matches[1]) {
 		$ret = verify_credentials();
 		break;
 	case "account/create";
-		$ret = new_account($format);
-		break;
-	case "account/update_profile";
-		$ret = update_profile(	isset($_POST['name']) ? $_POST['name'] : "",
+		$ret = account_create(	isset($_POST['screen_name']) ? $_POST['screen_name'] : "",
+					isset($_POST['name']) ? $_POST['name'] : "",
 					isset($_POST['location']) ? $_POST['location'] : "",
 					isset($_POST['url']) ? $_POST['url'] : "",
 					isset($_POST['description']) ? $_POST['description'] : "",
-					NULL, $format);
+					isset($_POST['password']) ? $_POST['password'] : "",
+					$format);
+		break;
+	case "account/update_profile";
+		$ret = update_profile(	isset($_POST['screen_name']) ? $_POST['screen_name'] : "",
+					isset($_POST['name']) ? $_POST['name'] : "",
+					isset($_POST['location']) ? $_POST['location'] : "",
+					isset($_POST['url']) ? $_POST['url'] : "",
+					isset($_POST['description']) ? $_POST['description'] : "",
+					isset($_POST['password']) ? $_POST['password'] : "",
+					"", $format);
 		break;
 	case "statuses/home_timeline";
 		$ret = home_timeline($format);
@@ -112,15 +120,16 @@ else {
 function requireUser() {
 	if (!isset($_SERVER{'PHP_AUTH_USER'})) {
 		header("HTTP/1.1 401 Unauthorized");
-		header("WWW-Authenticate: Basic realm=\"Notification daemon\"");
+		header("WWW-Authenticate: Basic realm=\"Mytter\"");
 		exit();
 	}
 	$user = new User();
 	$user->lookupByScreenName($_SERVER{'PHP_AUTH_USER'});
 	if ($user->verifyPassword($_SERVER{'PHP_AUTH_PW'}))
 		return $user;
+	$user = $user->getUser();
 	header("HTTP/1.1 401 Unauthorized");
-	header("WWW-Authenticate: Basic realm=\"Notification daemon\"");
+	header("WWW-Authenticate: Basic realm=\"Mytter\"");
 	exit();
 }
 
@@ -375,25 +384,49 @@ function user_lookup($format = "") {
 	}
 }
 
-function new_account($format = "") {
+function account_create($screen_name = "", $name = "", $location = "", $url = "", $description = "", $password = "", $format = "") {
 	// verify user
 	$user = requireUser();
 	// make sure user is admin if we require it
-	// see if our requested username is available
-	if ($newuser->lookupByScreenName($_POST['screen_name']);
-		return "fail";
+	if (!$user->isAdmin())
+		return "nope";
 	// create new user object
 	$newuser = new User();
+	// see if our requested username is available
+	if ($newuser->lookupByScreenName($screen_name))
+		return "fail";
 	// pass off our new user and stuff to update_profile
-	$newuser = update_profile($name, $location, $url, $description, $newuser, $format);
+	return update_profile($screen_name, $name, $location, $url, $description, $password, $newuser, $format);
 }
 
-function update_profile($name = "", $location = "", $url = "", $description = "", $user, $format = "") {
+function update_profile($screen_name = "", $name = "", $location = "", $url = "", $description = "", $password = "", $user = "", $format = "") {
 	// validate account if $user is unset
-	if (!$user);
+	if (empty($user))
 		$user = requireUser();
 	// run query to update thing
-	if (!$name);
-		$user->name = $name;
-	$user->save;
+	if (!empty($screen_name))
+		$user->setScreenName($screen_name);
+	if (!empty($name))
+		$user->setName($name);
+	if (!empty($location))
+		$user->setLocation($location);
+	if (!empty($url))
+		$user->setUrl($url);
+	if (!empty($description))
+		$user->setUrl($description);
+	if (!empty($password))
+		$user->setPassword($password);
+	if (!$user->save())
+		return "There was an error saving"; // TODO this should probably call an error() function
+	return $user->getUser();
+}
+
+function save_password($screen_name = "", $password = "") {
+	if (empty($password))
+		return false;
+	$user = requireUser();
+	if ($user->isAdmin()) {
+		$user->lookupByScreenName($screen_name);
+	}
+	return $user->savePassword($password);
 }
