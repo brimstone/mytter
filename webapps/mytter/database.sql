@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.1.63, for debian-linux-gnu (i486)
 --
--- Host: localhost    Database: notifications
+-- Host: localhost    Database: mytter
 -- ------------------------------------------------------
 -- Server version	5.1.63-0+squeeze1
 
@@ -68,9 +68,14 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` int(2) unsigned NOT NULL AUTO_INCREMENT,
   `screen_name` varchar(16) NOT NULL,
-  `password` varchar(255) NOT NULL,
+  `hash` varchar(256) NOT NULL,
+  `salt` varchar(256) NOT NULL,
   `name` varchar(32) NOT NULL,
+  `url` varchar(256) NOT NULL,
   `description` text NOT NULL,
+  `location` varchar(256) NOT NULL,
+  `profile_image_url` varchar(256) NOT NULL,
+  `isAdmin` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=0 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -84,4 +89,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2012-07-10 21:01:43
+-- Dump completed on 2012-08-15 17:36:13
