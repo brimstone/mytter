@@ -6,9 +6,9 @@ require "user.php";
 #   This will probably be passed in by the gui
 ##################################################
 $server = 'localhost';
-$database     = 'notify';
+$database     = 'mytter';
 $dbuser   = 'root';
-$dbpass   = 'testing';
+$dbpass   = 'password';
 $avatar = 'avatars';
 $screenname = 'admin';
 $username = 'admin';
@@ -106,6 +106,3 @@ function testDB($server, $dbuser, $dbpass) {
   }
   return;
 }
-
-
-Text
