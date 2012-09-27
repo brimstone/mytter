@@ -31,7 +31,7 @@ public function __construct() {
 	$this->location = "";
 	$this->url = "";
 	$this->description = "";
-	$this->isAdmin = 0;;
+	$this->isAdmin = 0;
 }
 
 public function lookupByScreenName ($screen_name) {
@@ -133,11 +133,15 @@ public function setDescription($description = "") {
 	return $this->description = $description;
 }
 
+public function setAdmin($isAdmin = "") {
+	if (empty($isAdmin))
+		return false;
+	return $this->isAdmin = $isAdmin;
+}
 public function save() {
 	global $db;
-
 	// set name, location, all that jazz
-	if ($this->id) 
+	if ($this->id)
 		$db->query(sprintf('UPDATE `users` SET
 			`hash`="%s", `salt`="%s", url="%s", location="%s", description="%s", screen_name="%s", name="%s"
 			WHERE id="%d"',
@@ -150,14 +154,15 @@ public function save() {
 			$db->real_escape_string($this->name),
 			$this->id));
 	else
-		$db->query(sprintf('INSERT INTO `users` (`screen_name`, `hash`, `salt`, `url`, `location`, `description`, `name`) VALUES("%s", "%s", "%s", "%s", "%s", "%s", "%s")',
+		$db->query(sprintf('INSERT INTO `users` (`screen_name`, `hash`, `salt`, `url`, `location`, `description`, `name`, `isAdmin`) VALUES("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")',
 			$db->real_escape_string($this->screen_name),
 			$db->real_escape_string($this->hash),
 			$db->real_escape_string($this->salt),
 			$db->real_escape_string($this->url),
 			$db->real_escape_string($this->location),
 			$db->real_escape_string($this->description),
-			$db->real_escape_string($this->name) ));
+			$db->real_escape_string($this->name),
+			$db->real_escape_string($this->isAdmin) ));
 	return true;
 }
 
