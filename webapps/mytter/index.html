@@ -12,11 +12,11 @@
 </head>
 <body>
 
-<div data-role="page">
+<div data-role="page" id="front">
 
 	<div data-role="header">
 		<h1>Mytter</h1>
-		<a href="#login" class="ui-btn-right" data-rel="dialog" data-transition="pop">Login</a>
+		<a class="ui-btn-right" data-rel="dialog" id="loginbtn">Login</a>
 	</div><!-- /header -->
 
 	<div data-role="content">	
@@ -25,21 +25,16 @@
 	
 </div><!-- /page -->
 
-<div data-role="page" id="login">
+<div data-role="page" id="home">
 
-	<div data-role="content">	
-		<form>
-		<div data-role="fieldcontain" class="ui-hide-label">
-			<label for="username">Username:</label>
-			<input type="text" name="username" id="username" value="" placeholder="Username" />
-		</div>
-		<div data-role="fieldcontain" class="ui-hide-label">
-			<label for="password">Password:</label>
-			<input type="password" name="password" id="password" value="" placeholder="Password" />
-		</div>
-		<input type="button" value="Login" id="loginbtn" />
-		<a href="#reset">Forgot password?</a>
-		</form>
+	<div data-role="header">
+		<h1></h1>
+		<a class="ui-btn-right" data-icon="gear" data-iconpos="notext" data-rel="dialog" id="settingsbtn">Settings</a>
+	</div><!-- /header -->
+
+	<div data-role="content">
+		<ul data-role="listview" id="tweetslist" data-inset="true">
+		</ul>
 	</div><!-- /content -->
 	
 </div><!-- /page -->
@@ -47,13 +42,30 @@
 
 
 <script>
-$(document).delegate('#login', 'pageinit', function(){
-	console.log("pageinit");
+var myself;
+$(document).delegate('#front', 'pageinit', function(){
 	$("#loginbtn").click(function(){
-		console.log("button clicking");
-		alert("logging in " + $("#username").val());
+		$.getJSON("account/verify_credentials.json", function(d){
+			myself = d;
+			$.mobile.changePage($("#home"));
+		});
 	});
 
+});
+$(document).delegate('#home', 'pagebeforeshow', function(){
+	if (myself == undefined) {
+		console.log("jumping to the front");
+		$.mobile.changePage($("#front"));
+		return;
+	}
+	console.log("congrats" + myself);
+	$("#home h1").text(myself.screen_name);
+	$.getJSON("statuses/home_timeline.json", function(d) {
+		for(x=0;x<d.length;x++){
+			$("#home #tweetslist").append("<li>" + d[x].text + "</li>");
+		}
+		$("#home #tweetslist").listview('refresh');
+	});
 });
 </script>
 
