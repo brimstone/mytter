@@ -1,17 +1,10 @@
 <?php
 # load our db stuff
-require "database.php";
-require "config.php";
-require "user.php";
+require_once "database.php";
+require_once "config.php";
+require_once "user.php";
+require_once "functions.php";
 
-
-function format_time($time) {
-	$dtzone = new DateTimeZone("GMT");
-	$dtime = new DateTime();
-	$dtime->setTimestamp($time);
-	$dtime->setTimeZone($dtzone);
-	return $dtime->format("D M d H:i:s O Y");
-}
 
 // http://davidwalsh.name/watch-post-save-php-post-data-xml
 function xml_encode($arr, $wrapper = 'data', $cycle=1) {
@@ -76,6 +69,9 @@ switch ($matches[1]) {
 	case "statuses/update";
 		$ret = update();
 		break;
+	case "statuses/user_timeline";
+		$ret = user_timeline($format);
+		break;
 	case "statuses/mentions";
 		$ret = mentions($format);
 		break;
@@ -99,6 +95,9 @@ switch ($matches[1]) {
 		break;
 	case "users/lookup";
 		$ret = user_lookup($format);
+		break;
+	case "users/show";
+		$ret = user_show($format);
 		break;
 	case "help/test";
 		$ret = "ok";
@@ -196,6 +195,72 @@ function home_timeline($format = "") {
 		msg_receive($msgqueue, 1, $msg_type, 16384, $msg);
 		return home_timeline($format);
 	}
+	if ($format == "xml") {
+		header("Content-type: application/xml");
+		$toreturn = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?".">\n";
+		$toreturn .= "<statuses>\n";
+		foreach ($timeline as $item)
+			$toreturn .= xml_encode($item, "status");
+		$toreturn .= "</statuses>";
+		return $toreturn;
+	}
+	return $timeline;
+}
+
+function user_timeline($format = "") {
+	global $db, $baseurl, $avatardir;
+
+	// figure out our paramaters
+	$user = new User();
+	if (isset($_GET{'user_id'}))
+		$user->lookupByID($_GET{'user_id'});
+	if (isset($_GET{'screen_name'}))
+		$user->lookupByScreenName($_GET{'screen_name'});
+
+	if ($user->isProtected()) {
+		$requestor = requireUser();
+		if (!friendships_exists("", "", $requestor->getID(), $user->getID())){
+			return "You're not friends bro" . $requestor->getID();
+		}
+	}
+
+	$since_id = 0;
+	if (isset($_GET{'since_id'}))
+		$since_id = $_GET{'since_id'};
+
+	$count = 20;
+	if (isset($_GET['count']))
+		$count = $_GET['count'];
+	if (isset($_POST['count']))
+		$count = $_POST['count'];
+
+	// TODO figure out private users
+	// figure out friends
+	$rawtimeline = $db->query(sprintf("SELECT
+						`updates`.`id` as id,
+						`updates`.`text` as text,
+						UNIX_TIMESTAMP(`updates`.`created`) as created_at,
+						`updates`.`user_id` as user_id
+						FROM `updates`
+						WHERE `updates`.`user_id` = '%d'
+							AND `updates`.`id` > %d
+						ORDER BY `updates`.`id` DESC
+						LIMIT %d
+						",
+						$db->real_escape_string($user->getID()),
+						$since_id,
+						$db->real_escape_string($count)));
+	$timeline = array();
+	if (is_array($rawtimeline))
+		foreach ($rawtimeline as $x) {
+			$timeline[] = array("id" => $x{'id'},
+				"text" => $x{'text'},
+				"created_at" => format_time($x{'created_at'}),
+				"entities" => array("urls" => array(), "hashtags" => array(), "user_mentions" => array()),
+				"source" => "blah"
+			);
+		}
+
 	if ($format == "xml") {
 		header("Content-type: application/xml");
 		$toreturn = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?".">\n";
@@ -307,8 +372,11 @@ function friendships_exists($screen_name_a = "",
 		$user_a->lookupByID($user_id_a);
 	if ($user_id_b != "")
 		$user_b->lookupByID($user_id_b);
-	# simple array check
-	return in_array($user_b->getID(), $user_a->getFollowing());
+
+	if ($user_a->isValid() and $user_b->isValid())
+		# simple array check
+		return in_array($user_b->getID(), $user_a->getFollowing());
+	return false;
 }
 
 # FIXME untested
@@ -382,6 +450,31 @@ function user_lookup($format = "") {
 		$output .= "</users>\n";
 		return $output;
 	}
+}
+
+function user_show($format = "") {
+	global $db;
+	$user = new User;
+	if (isset($_GET{'user_id'}))
+		$user->lookupByID($_GET{'user_id'});
+	if (isset($_GET{'screen_name'}))
+		$user->lookupByScreenName($_GET{'screen_name'});
+	// TODO if this isn't valid, return an error
+	if (!$user->isValid())
+		return "Not a valid user";
+	$toreturn = $user->getUser();
+	// TODO Make this real
+	$toreturn{'statuses_count'} = 42;
+	$toreturn{'friends_count'} = 42;
+	$toreturn{'followers_count'} = 42;
+	$toreturn{'favourites_count'} = 42;
+	// TODO if user is protected, don't include the most recent status
+	if (!$user->isProtected()) {
+		$toreturn{'text'} = "";
+	}
+	// TODO if we're authenticated and setup to follow this person
+	// $toreturn{'following'} = true
+	return $toreturn;
 }
 
 function account_create($screen_name = "", $name = "", $location = "", $url = "", $description = "", $password = "", $format = "") {

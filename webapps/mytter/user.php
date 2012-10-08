@@ -1,4 +1,6 @@
 <?php
+require_once "functions.php";
+
 class User {
 
 protected $screen_name;
@@ -9,6 +11,9 @@ protected $salt;
 protected $following;
 protected $followers;
 protected $isAdmin;
+protected $created;
+protected $protected;
+protected $valid;
 
 protected function _initalizeUser($user) {
 	$this->screen_name = $user{'screen_name'};
@@ -20,6 +25,9 @@ protected function _initalizeUser($user) {
 	$this->url = $user{'url'};
 	$this->description = $user{'description'};
 	$this->isAdmin = $user{'isAdmin'};
+	$this->created = $user{'created'};
+	$this->protected = $user{'protected'};
+	$this->valid = 1;
 }
 
 public function __construct() {
@@ -32,18 +40,21 @@ public function __construct() {
 	$this->url = "";
 	$this->description = "";
 	$this->isAdmin = 0;
+	$this->created = time();
+	$this->protected = 1;
+	$this->valid = 0;
 }
 
 public function lookupByScreenName ($screen_name) {
 	global $db;
-	$user = $db->query(sprintf("SELECT id,name,screen_name,hash,salt,location,url,description,isAdmin FROM `users` WHERE screen_name='%s';",
+	$user = $db->query(sprintf("SELECT id,name,screen_name,hash,salt,location,url,description,isAdmin,UNIX_TIMESTAMP(created) as created,protected FROM `users` WHERE screen_name='%s';",
 		$db->real_escape_string($screen_name)));
 	$this->_initalizeUser($user[0]);
 }
 
 public function lookupByID ($id) {
 	global $db;
-	$user = $db->query(sprintf("SELECT id,name,screen_name,hash,salt,location,url,description,isAdmin FROM `users` WHERE id='%d';",
+	$user = $db->query(sprintf("SELECT id,name,screen_name,hash,salt,location,url,description,isAdmin,UNIX_TIMESTAMP(created) as created,protected FROM `users` WHERE id='%d';",
 		$db->real_escape_string($id)));
 	$this->_initalizeUser($user[0]);
 }
@@ -62,6 +73,8 @@ public function getUser() {
 	}
 	return array("id" => $this->id,
 		"screen_name" => $this->screen_name,
+		"created_at" => format_time($this->created),
+		"protected" => ($this->protected == 1),
 		"name" => $this->name,
 		"location" => $this->location,
 		"url" => $this->url,
@@ -168,6 +181,14 @@ public function save() {
 
 public function isAdmin() {
 	return $this->isAdmin == 1;
+}
+
+public function isProtected() {
+	return $this->protected == 1;
+}
+
+public function isValid() {
+	return $this->valid == 1;
 }
 
 }
