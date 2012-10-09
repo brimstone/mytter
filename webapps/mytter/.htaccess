@@ -1,6 +1,9 @@
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^(.*)$ api.php?$1 [QSA,L]
+	RewriteEngine On
+	RewriteRule ^1/(.*)$ twitter1.php?$1 [QSA,E=HANDLED:1,L]
+	RewriteRule ^1.1/(.*)$ twitter1.1.php?$1 [QSA,E=HANDLED:1,L]
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{REQUEST_FILENAME} !-f
+	RewriteCond %{ENV:HANDLED} ^$
+	RewriteRule ^(.*)$ default.php?$1 [QSA,E=HANDLED:1,L]
 </IfModule>
