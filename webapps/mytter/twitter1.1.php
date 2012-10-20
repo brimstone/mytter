@@ -39,8 +39,11 @@ switch ($matches[1]) {
 	case "statuses/user_timeline";
 		$ret = user_timeline($format);
 		break;
-	case "statuses/mentions_tiemline";
+	case "statuses/mentions_timeline";
 		$ret = mentions($format);
+		break;
+	case "direct_messages";
+		$ret = array();
 		break;
 	case "friends/ids";
 		$ret = friends_ids($format);
