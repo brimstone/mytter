@@ -359,10 +359,13 @@ function user_show($format = "") {
 	if (!$user->isValid())
 		return "Not a valid user";
 	$toreturn = $user->getUser();
-	// TODO Make this real
-	$toreturn{'statuses_count'} = 42;
-	$toreturn{'friends_count'} = 42;
-	$toreturn{'followers_count'} = 42;
+	$out = $db->query(sprintf("SELECT count(*) FROM `updates` WHERE user_id='%d';", $toreturn{'id'}));
+	$toreturn{'statuses_count'} = $out[0]['count(*)'];
+	$out = $db->query(sprintf("SELECT count(*) FROM `relationships` WHERE follower_id='%d';", $toreturn{'id'}));
+	$toreturn{'friends_count'} = $out[0]['count(*)'];
+	$out = $db->query(sprintf("SELECT count(*) FROM `relationships` WHERE following_id='%d';", $toreturn{'id'}));
+	$toreturn{'followers_count'} = $out[0]['count(*)'];;
+	// TODO Make favourites_count real if we want
 	$toreturn{'favourites_count'} = 42;
 	// TODO if user is protected, don't include the most recent status
 	if (!$user->isProtected()) {
@@ -372,6 +375,7 @@ function user_show($format = "") {
 	// $toreturn{'following'} = true
 	return $toreturn;
 }
+
 
 function account_create($screen_name = "", $name = "", $location = "", $url = "", $description = "", $password = "", $format = "") {
 	// verify user

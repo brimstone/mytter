@@ -14,6 +14,7 @@ $screenname = 'admin';
 $username = 'admin';
 $password = 'testing';
 ##################################################
+$ABSPATH=dirname(__FILE__).'/';
 
 # Test that the db vars are good
 testDB($server, $dbuser, $dbpass);
@@ -33,8 +34,8 @@ createAdmin($screenname, $username, $password);
 return;
 
 function writeConfig($server, $database, $dbuser, $dbpass, $avatar){
+  global $ABSPATH;
   # look for sample config file
-  $ABSPATH=dirname(__FILE__).'/';
   if ( ! file_exists( $ABSPATH . 'config.php.sample' ) ){
     print "Couldn't find config.php.sample, aborting install";
     return;
@@ -67,7 +68,7 @@ function writeConfig($server, $database, $dbuser, $dbpass, $avatar){
 }
 
 function setupDB($server, $dbuser, $dbpass, $database){
-  global $db;
+  global $db, $ABSPATH;
 
   $databases = $db->query(sprintf('SHOW DATABASES'));
   foreach($databases as $d){
