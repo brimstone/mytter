@@ -70,11 +70,13 @@ function home_timeline($format = "") {
 	$timeline = array();
 	if (is_array($rawtimeline))
 		foreach ($rawtimeline as $x) {
+			$u = new User();
+			$u->lookupByScreenName($x{'screen_name'});
 			$timeline[] = array("id" => $x{'id'},
 				"text" => $x{'text'},
 				"created_at" => format_time($x{'created_at'}),
 				"entities" => array("urls" => array(), "hashtags" => array(), "user_mentions" => array()),
-				"user" => array("id" => $x{'user_id'}, "screen_name" => $x{'screen_name'}, "name" => $x{'name'}, "profile_image_url" => $baseurl . "/" . $avatardir . "/" . $x{'screen_name'} . ".png"),
+				"user" => $u->getUser(),
 				"favorited" => false,
 				"source" => "blah"
 			);
@@ -153,7 +155,8 @@ function user_timeline($format = "") {
 				"text" => $x{'text'},
 				"created_at" => format_time($x{'created_at'}),
 				"entities" => array("urls" => array(), "hashtags" => array(), "user_mentions" => array()),
-				"source" => "blah"
+				"source" => "blah",
+				"user" => $user->getUser()
 			);
 		}
 

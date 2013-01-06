@@ -79,7 +79,8 @@ public function getUser() {
 		"location" => $this->location,
 		"url" => $this->url,
 		"description" => $this->description,
-		"profile_image_url" => $baseurl . "/" . $avatardir . "/" . $this->screen_name . ".png"
+		"profile_image_url" => $baseurl . "/" . $avatardir . "/" . $this->screen_name . ".png",
+		"profile_image_url_https" => $baseurl . "/" . $avatardir . "/" . $this->screen_name . ".png"
 	);
 }
 

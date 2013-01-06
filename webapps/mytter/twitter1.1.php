@@ -85,5 +85,5 @@ if (is_string($ret))
 	echo "$ret";
 else {
 	header("Content-type: application/json");
-	echo json_encode($ret);
+	echo preg_replace('#\\\/#', "/", json_encode($ret));
 }
