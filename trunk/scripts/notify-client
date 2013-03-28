@@ -41,7 +41,6 @@ sub notify {
 my %tweet = getstatus();
 $id = $tweet{'id'};
 while(1) { 
-  ### New Loop
   sleep 2;    
   my %tweet = getstatus();
   $id = $tweet{'id'};

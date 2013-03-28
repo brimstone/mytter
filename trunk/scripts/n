@@ -1,7 +1,7 @@
 #!/bin/bash
 user=""
 pass=""
-usl="mytter.org/notifications/1.1"
+url="mytter.org/notifications/1.1"
 status="$1"
 [ -z "$status" ] && while read -r aline; do
 	status="$status$aline
