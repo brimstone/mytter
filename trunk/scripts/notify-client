@@ -3,35 +3,47 @@ use strict;
 use warnings;
 use JSON;
 use LWP::Simple;
+#use Smart::Comments;
 
 my $user = "";
 my $pass = "";
-my $baseurl = "";
+my $baseurl = "mytter.org/notifications/1.1";
 my $id = 0;
-# TODO hit the api once to get the top id
-while(1) {
-	sleep 2;
-	my $raw = get("https://$user:$pass\@$baseurl/statuses/home_timeline.json?count=1&since_id=$id&stream=true");
-	my %tweet;
-	# TODO add error checking here
-	eval {
-		%tweet = %{decode_json($raw)->[0]};
-	};
-	if ($@) {
-		print "Error: $@\n";
-		next;
-	}
-	$id = $tweet{'id'};
-	my $screen_name = $tweet{'user'}{'screen_name'};
-	my $text = $tweet{'text'};
-	$screen_name =~ s/(")/\\$1/g;
-	$text =~ s/(")/\\$1/g;
-	my $icon = $tweet{'user'}{'profile_image_url'};
-	$icon =~ s#^.*/##;
-	getstore($tweet{'user'}{'profile_image_url'}, "/tmp/$icon");
-	# TODO add "minutes ago"
-	$text =~ s/"/\"/g;
-	$text =~ s/`/\\`/g;
-	$text =~ s/\$/\\\$/g;
-	system('notify-send "' . $screen_name . '" --icon="/tmp/' . $icon . '" "' . $text . '"');
+
+sub getstatus { 
+  ### Call to getstatus
+  my $raw = get("https://$user:$pass\@$baseurl/statuses/home_timeline.json?count=1&since_id=$id&stream=true");
+  my %tweet;
+  eval {
+  	%tweet = %{decode_json($raw)->[0]};
+  };
+  ### %tweet
+  return %tweet;
+}
+
+sub notify {
+  ### Call to notify
+  my (%tweet) = @_;
+  my $screen_name = $tweet{'user'}{'screen_name'};
+  my $text = $tweet{'text'};
+  my $icon = $tweet{'user'}{'profile_image_url'};
+  $screen_name =~ s/(")/\\$1/g;
+  $text =~ s/(")/\\$1/g;
+  $icon =~ s#^.*/##;
+  getstore($tweet{'user'}{'profile_image_url'}, "/tmp/$icon");
+  $text =~ s/"/\"/g;
+  $text =~ s/`/\\`/g;
+  $text =~ s/\$/\\\$/g;	
+  system('notify-send "' . $screen_name . '" --icon="/tmp/' . $icon . '" "' . $text . '"');
+}
+
+### Get newest status id
+my %tweet = getstatus();
+$id = $tweet{'id'};
+while(1) { 
+  ### New Loop
+  sleep 2;    
+  my %tweet = getstatus();
+  $id = $tweet{'id'};
+  notify(%tweet);
 }
