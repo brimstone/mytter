@@ -72,13 +72,16 @@ function home_timeline($format = "") {
 		foreach ($rawtimeline as $x) {
 			$u = new User();
 			$u->lookupByScreenName($x{'screen_name'});
-			$timeline[] = array("id" => $x{'id'},
+                        $timeline[] = array(
+				"id" => intval($x{'id'}),
+				"id_str" => $x{'id'},
 				"text" => $x{'text'},
 				"created_at" => format_time($x{'created_at'}),
 				"entities" => array("urls" => array(), "hashtags" => array(), "user_mentions" => array()),
 				"user" => $u->getUser(),
 				"favorited" => false,
-				"source" => "blah"
+				"source" => "blah",
+				"truncated" => false,
 			);
 		}
 

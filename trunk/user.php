@@ -71,7 +71,9 @@ public function getUser() {
 	if ($this->screen_name == "") {
 		return; # TODO Nothing?
 	}
-	return array("id" => $this->id,
+        return array(
+		"id" => intval($this->id),
+		"id_str" => $this->id,
 		"screen_name" => $this->screen_name,
 		"created_at" => format_time($this->created),
 		"protected" => ($this->protected == 1),
