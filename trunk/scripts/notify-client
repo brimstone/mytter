@@ -12,7 +12,7 @@ my $id = 0;
 
 sub getstatus { 
   ### Call to getstatus
-  my $raw = get("https://$user:$pass\@$baseurl/statuses/home_timeline.json?count=1&since_id=$id&stream=true");
+  my $raw = get("https://$user:$pass\@$baseurl/statuses/home_timeline.json?count=1&since_id=$id&stream=true") || return;
   my %tweet;
   eval {
   	%tweet = %{decode_json($raw)->[0]};
@@ -42,7 +42,7 @@ my %tweet = getstatus();
 $id = $tweet{'id'};
 while(1) { 
   sleep 2;    
-  my %tweet = getstatus();
+  my %tweet = getstatus() || next;
   $id = $tweet{'id'};
   notify(%tweet);
 }
