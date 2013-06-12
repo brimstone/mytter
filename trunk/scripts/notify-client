@@ -42,7 +42,7 @@ my %tweet = getstatus();
 $id = $tweet{'id'};
 while(1) { 
   sleep 2;    
-  my %tweet = getstatus() || next;
-  $id = $tweet{'id'};
+  my %tweet = getstatus();
+  $id = $tweet{'id'} || next;
   notify(%tweet);
 }
