@@ -1,0 +1,1 @@
+template "config.php.rsh" "/var/www/mytter/config.php"

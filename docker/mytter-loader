@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# template our config file from our environment variables
+fss /fss/mytter
+
+/usr/sbin/apache2ctl -k start -D FOREGROUND &
+/bin/bash
